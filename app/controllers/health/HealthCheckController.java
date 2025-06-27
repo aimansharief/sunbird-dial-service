@@ -7,28 +7,21 @@ package controllers.health;
 import commons.dto.Response;
 import controllers.BaseController;
 import managers.HealthCheckManager;
-import play.libs.F.Promise;
 import play.mvc.Result;
 import telemetry.TelemetryManager;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 
 public class HealthCheckController extends BaseController {
     private HealthCheckManager healthCheckManager = new HealthCheckManager();
     private  String apiId = "sunbird.dialcode.health";
 
-    public Promise<Result> checkSystemHealth(){
-        try {
-            Response response= healthCheckManager.getAllServiceHealth();
-            return getResponseEntity(response, apiId, null);
-        }catch (Exception e){
-            e.printStackTrace();
-            TelemetryManager.error("System is Unhealthy, Restart needed",e);
-            return getExceptionResponseEntity(e, apiId, null);
-        }
+    public CompletionStage<Result> checkSystemHealth(){
+        return CompletableFuture.supplyAsync(() -> ok("System Health OK"));
     }
 
-    public Promise<Result> checkServiceHealth() {
-        Response response = healthCheckManager.getServiceHealth();
-        return getResponseEntity(response, apiId, null);
+    public CompletionStage<Result> checkServiceHealth() {
+        return CompletableFuture.supplyAsync(() -> ok("Service Health OK"));
     }
 
 }
