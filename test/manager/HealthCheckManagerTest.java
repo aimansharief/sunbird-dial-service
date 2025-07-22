@@ -11,7 +11,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class HealthCheckManagerTest extends CassandraTestSetup{
+public class HealthCheckManagerTest extends CassandraTestSetup {
 
     HealthCheckManager healthCheckManager;
     boolean goodHealth;
