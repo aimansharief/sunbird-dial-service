@@ -10,7 +10,7 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <play2.version>2.7.2</play2.version>
+        <play2.version>2.7.9</play2.version>
         <play2.plugin.version>1.0.0-rc5</play2.plugin.version>
         <scala.version>2.12.11</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
@@ -174,7 +174,7 @@
         <dependency>
             <groupId>com.datastax.cassandra</groupId>
             <artifactId>cassandra-driver-core</artifactId>
-            <version>3.1.2</version>
+            <version>3.11.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.guava</groupId>
@@ -206,7 +206,12 @@
         <dependency>
             <groupId>com.datastax.cassandra</groupId>
             <artifactId>cassandra-driver-mapping</artifactId>
-            <version>3.1.2</version>
+            <version>3.7.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.datastax.cassandra</groupId>
+            <artifactId>cassandra-driver-extras</artifactId>
+            <version>3.7.2</version>
         </dependency>
         <dependency>
             <groupId>redis.clients</groupId>
@@ -299,6 +304,7 @@
         <resources>
             <resource>
                 <directory>${basedir}/conf</directory>
+                <filtering>false</filtering>
             </resource>
         </resources>
         <testResources>
@@ -308,12 +314,52 @@
         </testResources>
         <plugins>
             <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+                <version>4.5.6</version>
+                <executions>
+                    <execution>
+                        <id>scala-compile-first</id>
+                        <phase>process-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <recompileMode>incremental</recompileMode>
+                            <scalaVersion>${scala.version}</scalaVersion>
+                            <args>
+                                <arg>-deprecation</arg>
+                            </args>
+                            <sourceDir>${basedir}/app</sourceDir>
+                            <sourceDir>${project.build.directory}/routes/main</sourceDir>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
                     <release>11</release>
+                    <encoding>UTF-8</encoding>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>default-compile</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <compileSourceRoots>
+                                <compileSourceRoot>${basedir}/app</compileSourceRoot>
+                                <compileSourceRoot>${project.build.directory}/routes/main</compileSourceRoot>
+                            </compileSourceRoots>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -341,11 +387,18 @@
                 <groupId>com.google.code.play2-maven-plugin</groupId>
                 <artifactId>play2-maven-plugin</artifactId>
                 <version>${play2.plugin.version}</version>
-                <extensions>true</extensions>
                 <configuration>
                     <mainLang>java</mainLang>
                     <playVersion>${play2.version}</playVersion>
                 </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>routes-compile</goal>
+                            <goal>template-compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
@@ -373,22 +426,6 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>net.alchim31.maven</groupId>
-                <artifactId>scala-maven-plugin</artifactId>
-                <version>4.5.6</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <scalaVersion>2.12.11</scalaVersion>
-                </configuration>
             </plugin>
         </plugins>
     </build>

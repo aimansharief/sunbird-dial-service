@@ -11,10 +11,18 @@ import utils.DialCodeEnum;
 import java.util.*;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CompletableFuture;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
+@Singleton
 public class DialcodeV4Controller extends BaseController {
     
-    private DialcodeManager dialCodeManager = new DialcodeManager();
+    private final DialcodeManager dialCodeManager;
+
+    @Inject
+    public DialcodeV4Controller(DialcodeManager dialCodeManager) {
+        this.dialCodeManager = dialCodeManager;
+    }
 
     public CompletionStage<Result> readDialCode(String dialCodeId) {
         String apiId = "sunbird.dialcode.read";
@@ -29,7 +37,7 @@ public class DialcodeV4Controller extends BaseController {
 
     public CompletionStage<Result> updateDialCode(String dialCodeId) {
         String apiId = "sunbird.dialcode.update";
-        String channelId = request().header("X-Channel-ID").orElse(null);
+        String channelId = request().header("X-Channel-ID").orElse("");
         Request request = getRequest();
         try {
             Map<String, Object> map = (Map<String, Object>) request.get(DialCodeEnum.dialcode.name());

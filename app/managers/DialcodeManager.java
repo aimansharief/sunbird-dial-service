@@ -33,6 +33,8 @@ import utils.Constants;
 import utils.DateUtils;
 import utils.DialCodeEnum;
 import utils.DialCodeGenerator;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -46,6 +48,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Singleton
 public class DialcodeManager extends BaseManager {
     private PublisherStore publisherStore = new PublisherStore();
 
@@ -81,7 +84,8 @@ public class DialcodeManager extends BaseManager {
         this.processor = processor;
     }
 
-    public DialcodeManager(){
+    @Inject
+    public DialcodeManager() {
         init();
     }
 

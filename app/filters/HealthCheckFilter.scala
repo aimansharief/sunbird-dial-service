@@ -10,17 +10,13 @@ import controllers.BaseController
 import play.api.mvc._
 import akka.stream.Materializer
 import scala.concurrent.Future
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import scala.concurrent.ExecutionContext
 import play.core.j.JavaHelpers
 import play.core.j.JavaContextComponents
 import javax.inject.Inject
 
-class HealthCheckFilter @Inject()(
-  javaContextComponents: JavaContextComponents,
-  baseController: BaseController
-)(implicit val mat: Materializer) extends Filter {
-  def apply(nextFilter: RequestHeader => Future[Result])
-           (requestHeader: RequestHeader): Future[Result] = {
+class HealthCheckFilter @Inject()( javaContextComponents: JavaContextComponents, baseController: BaseController)(implicit val mat: Materializer, ec: ExecutionContext) extends Filter {
+  def apply(nextFilter: RequestHeader => Future[Result])(requestHeader: RequestHeader): Future[Result] = {
     if (!requestHeader.path.contains("/health")) {
       if (!managers.HealthCheckManager.health) {
         val jContext = JavaHelpers.createJavaContext(requestHeader, javaContextComponents)

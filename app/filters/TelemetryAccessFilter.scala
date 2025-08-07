@@ -1,67 +1,45 @@
 package filters
 
+import akka.util.ByteString
 import javax.inject.Inject
-import play.api.mvc._
-import play.api.Logger
-import akka.stream.Materializer
-import scala.concurrent.{ExecutionContext, Future}
-import commons.AppConfig
-import commons.dto.{ExecutionContext => Ctx}
-import commons.dto.HeaderParam
-import org.apache.commons.lang3.StringUtils
 import telemetry.TelemetryAccessEventUtil
+import play.api.Logging
+import play.api.libs.streams.Accumulator
+import play.api.mvc._
+
+import scala.concurrent.ExecutionContext
 import scala.collection.JavaConverters._
 
-class TelemetryAccessFilter @Inject()(
-  implicit val mat: Materializer, ec: ExecutionContext
-) extends Filter {
+class TelemetryAccessFilter @Inject() (implicit ec: ExecutionContext) extends EssentialFilter with Logging {
 
-  private val logger = Logger("accesslog")
+  val xHeaderNames = Map("x-session-id" -> "X-Session-ID", "X-Consumer-ID" -> "x-consumer-id", "x-device-id" -> "X-Device-ID", "x-app-id" -> "APP_ID", "x-authenticated-userid" -> "X-Authenticated-Userid", "x-channel-id" -> "X-Channel-Id")
 
-  override def apply(nextFilter: RequestHeader => Future[Result])
-                    (requestHeader: RequestHeader): Future[Result] = {
-    val startTime = System.currentTimeMillis
+  def apply(nextFilter: EssentialAction) = new EssentialAction {
+    def apply(requestHeader: RequestHeader) = {
 
-    nextFilter(requestHeader).map { result =>
-      try {
-        val path = requestHeader.path
-        if (!path.contains("/health")) {
-          val data = scala.collection.mutable.Map[String, Object](
-            "StartTime" -> Long.box(startTime),
+      val startTime = System.currentTimeMillis
+
+      val accumulator: Accumulator[ByteString, Result] = nextFilter(requestHeader)
+
+      accumulator.map { result =>
+        val endTime     = System.currentTimeMillis
+        val requestTime = endTime - startTime
+
+        val path = requestHeader.uri
+        if(!path.contains("/health")){
+          val headers = requestHeader.headers.headers.groupBy(_._1).mapValues(_.map(_._2))
+          val appHeaders = headers.filter(header => xHeaderNames.keySet.contains(header._1.toLowerCase))
+            .map(entry => (xHeaderNames.get(entry._1.toLowerCase()).get, entry._2.head))
+          val otherDetails = Map[String, Any]("StartTime" -> startTime, "env" -> "content",
             "RemoteAddress" -> requestHeader.remoteAddress,
-            "Method" -> requestHeader.method,
+            "ContentLength" -> result.body.contentLength.getOrElse(0),
+            "Status" -> result.header.status, "Protocol" -> "http",
             "path" -> path,
-            "Protocol" -> (if (requestHeader.secure) "HTTPS" else "HTTP"),
-            "env" -> "dialcode"
-          )
-          val sessionId = requestHeader.headers.get("X-Session-ID").orNull
-          val consumerId = requestHeader.headers.get("X-Consumer-ID").orNull
-          val deviceId = requestHeader.headers.get("X-Device-ID").orNull
-          val authUserId = requestHeader.headers.get("X-Authenticated-Userid").orNull
-          val channelId = requestHeader.headers.get("X-Channel-ID").orNull
-          val appId = requestHeader.headers.get("X-APP-ID").orNull
-          data += ("X-Session-ID" -> sessionId)
-          data += ("X-Consumer-ID" -> consumerId)
-          data += ("X-Device-ID" -> deviceId)
-          data += ("X-Authenticated-Userid" -> authUserId)
-          data += (HeaderParam.APP_ID.name() -> appId)
-          if (StringUtils.isNotBlank(deviceId))
-            Ctx.getCurrent().getGlobalContext().put(HeaderParam.DEVICE_ID.name(), deviceId)
-          if (StringUtils.isNotBlank(consumerId))
-            Ctx.getCurrent().getGlobalContext().put(HeaderParam.CONSUMER_ID.name(), consumerId)
-          if (StringUtils.isNotBlank(channelId))
-            Ctx.getCurrent().getGlobalContext().put(HeaderParam.CHANNEL_ID.name(), channelId)
-          else
-            Ctx.getCurrent().getGlobalContext().put(HeaderParam.CHANNEL_ID.name(), AppConfig.config.getString("channel.default"))
-          if (StringUtils.isNotBlank(appId))
-            Ctx.getCurrent().getGlobalContext().put(HeaderParam.APP_ID.name(), channelId)
-          TelemetryAccessEventUtil.writeTelemetryEventLog(data.toMap.asJava)
-          logger.info(s"${requestHeader.remoteAddress} ${requestHeader.host} ${requestHeader.method} ${requestHeader.uri} ${result.header.status}")
+            "Method" -> requestHeader.method.toString)
+          TelemetryAccessEventUtil.writeTelemetryEventLog((otherDetails ++ appHeaders).asInstanceOf[Map[String, AnyRef]].asJava)
         }
-      } catch {
-        case e: Exception => logger.error(e.getMessage)
+        result.withHeaders("Request-Time" -> requestTime.toString)
       }
-      result
     }
   }
-} 
+}
